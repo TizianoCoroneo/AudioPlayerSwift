@@ -114,13 +114,13 @@ public class AudioPlayer: NSObject {
 
     // MARK: Init
 
-    public convenience init(fileName: String) throws {
+    public convenience init(fileName: String, bundle: Bundle = .main) throws {
         let soundFileComponents = fileName.trimmingCharacters(in: .whitespacesAndNewlines).components(separatedBy: ".")
         guard soundFileComponents.count == 2 else {
             throw AudioPlayerError.fileExtension
         }
 
-        guard let url = Bundle.main.url(forResource: soundFileComponents[0], withExtension: soundFileComponents[1]) else {
+        guard let url = bundle.url(forResource: soundFileComponents[0], withExtension: soundFileComponents[1]) else {
             throw AudioPlayerError.fileNotFound
         }
         try self.init(contentsOf: url)
