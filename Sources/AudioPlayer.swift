@@ -32,6 +32,7 @@ public class AudioPlayer: NSObject {
     public static let SoundDidFinishPlayingNotification = Notification.Name(rawValue: "SoundDidFinishPlayingNotification")
     public static let SoundDidFinishPlayingSuccessfully = "success"
     public typealias SoundDidFinishCompletion = (_ didFinish: Bool) -> Void
+    public typealias ProgressCompletion = (_ progress: Float) -> Void
 
     // MARK: Properties
 
@@ -43,6 +44,9 @@ public class AudioPlayer: NSObject {
 
     /// A callback closure that will be called when the audio finishes playing, or is stopped.
     public var completionHandler: SoundDidFinishCompletion?
+
+    /// A callback closure that is called when the player updates its current time.
+    public var progressHandler: ProgressCompletion?
 
     /// is it playing or not?
     public var isPlaying: Bool {
@@ -110,7 +114,9 @@ public class AudioPlayer: NSObject {
 
     fileprivate var fadeTime: TimeInterval = 0.0
     fileprivate var fadeStart: TimeInterval = 0.0
-    fileprivate var timer: Timer?
+    fileprivate var fadeTimer: Timer?
+
+    fileprivate var progressTimer: Timer?
 
     // MARK: Init
 
@@ -141,7 +147,7 @@ public class AudioPlayer: NSObject {
     }
 
     deinit {
-        timer?.invalidate()
+        fadeTimer?.invalidate()
         sound?.delegate = nil
     }
 
@@ -153,8 +159,21 @@ extension AudioPlayer {
 
     public func play(withDelay delay: Int = 0) {
         if self.isPlaying == false {
-            DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(delay), execute: {
-                self.sound?.play()
+            DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(delay), execute: { [progressHandler] in
+                guard let sound = self.sound else { return }
+
+                sound.play()
+
+                let progress = sound.duration != 0
+                    ? sound.currentTime / sound.duration
+                    : 0
+
+                self.progressTimer = Timer.scheduledTimer(
+                    withTimeInterval: 1,
+                    repeats: true,
+                    block: { [progressHandler] _ in
+                        progressHandler?(Float(progress))
+                })
             })
         }
     }
@@ -176,8 +195,8 @@ extension AudioPlayer {
         targetVolume = volume
         fadeTime = duration
         fadeStart = NSDate().timeIntervalSinceReferenceDate
-        if timer == nil {
-            timer = Timer.scheduledTimer(timeInterval: 0.015, target: self, selector: #selector(handleFadeTo), userInfo: nil, repeats: true)
+        if fadeTimer == nil {
+            fadeTimer = Timer.scheduledTimer(timeInterval: 0.015, target: self, selector: #selector(handleFadeTo), userInfo: nil, repeats: true)
         }
     }
 
@@ -198,8 +217,8 @@ extension AudioPlayer {
         if delta > 0.0 && volume >= targetVolume ||
             delta < 0.0 && volume <= targetVolume || delta == 0.0 {
                 sound?.volume = targetVolume
-                timer?.invalidate()
-                timer = nil
+                fadeTimer?.invalidate()
+                fadeTimer = nil
                 if sound?.volume == 0 {
                     stop()
                 }
@@ -219,8 +238,8 @@ extension AudioPlayer: AVAudioPlayerDelegate {
     fileprivate func soundDidFinishPlaying(successfully flag: Bool) {
         sound?.stop()
         sound?.prepareToPlay()
-        timer?.invalidate()
-        timer = nil
+        fadeTimer?.invalidate()
+        fadeTimer = nil
 
         if let nonNilCompletionHandler = completionHandler {
             nonNilCompletionHandler(flag)
