@@ -148,6 +148,7 @@ public class AudioPlayer: NSObject {
 
     deinit {
         fadeTimer?.invalidate()
+        progressTimer?.invalidate()
         sound?.delegate = nil
     }
 
@@ -238,8 +239,12 @@ extension AudioPlayer: AVAudioPlayerDelegate {
     fileprivate func soundDidFinishPlaying(successfully flag: Bool) {
         sound?.stop()
         sound?.prepareToPlay()
+
         fadeTimer?.invalidate()
         fadeTimer = nil
+
+        progressTimer?.invalidate()
+        progressTimer = nil
 
         if let nonNilCompletionHandler = completionHandler {
             nonNilCompletionHandler(flag)
