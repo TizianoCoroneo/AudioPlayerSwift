@@ -218,6 +218,7 @@ extension AudioPlayer: AVAudioPlayerDelegate {
 
     fileprivate func soundDidFinishPlaying(successfully flag: Bool) {
         sound?.stop()
+        sound?.prepareToPlay()
         timer?.invalidate()
         timer = nil
 
